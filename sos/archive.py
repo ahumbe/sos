@@ -183,10 +183,14 @@ class FileCacheArchive(Archive):
         self.log_debug("Making leading paths for %s" % src)
         root = self._archive_root
         dest = src
+        self.log_debug("Entering _m_l_p() dest is '%s'" % dest)
 
         def in_archive(path):
             """Test whether path ``path`` is inside the archive.
             """
+            self.log_debug("in_archive(%s) -> %s [%s]" %
+                           (path, path.startswith(os.path.join(root, "")),
+                            os.path.join(root, "")))
             return path.startswith(os.path.join(root, ""))
 
         if not src.startswith("/"):
@@ -208,7 +212,9 @@ class FileCacheArchive(Archive):
         abs_path = root
         src_path = "/"
 
+        self.log_debug("Path components: %s" % path_comps)
         # Check and create components as needed
+        self.log_debug("Path components: %s" % path_comps)
         for comp in path_comps:
             abs_path = os.path.join(abs_path, comp)
 
@@ -220,6 +226,8 @@ class FileCacheArchive(Archive):
 
             if not os.path.exists(abs_path):
                 self.log_debug("Making path %s" % abs_path)
+                self.log_debug("abs_path='%s' src_path='%s', src_dir='%s'" %
+                               (abs_path, src_path, src_dir))
                 if os.path.islink(src_path) and os.path.isdir(src_path):
                     target = os.readlink(src_path)
 
@@ -231,6 +239,11 @@ class FileCacheArchive(Archive):
                     # recursively copied.
                     target_src = os.path.join(target_dir, target)
 
+                    self.log_debug("Recursively making link target_src='%s'"
+                                   "target='%s' rel_target='%s'" %
+                                   (target_src, target,
+                                    os.path.relpath(target)))
+
                     # Recursively create leading components of target
                     dest = self._make_leading_paths(target_src, mode=mode)
                     dest = os.path.normpath(dest)
@@ -241,6 +254,7 @@ class FileCacheArchive(Archive):
                 else:
                     self.log_debug("Making directory %s" % abs_path)
                     os.mkdir(abs_path, mode)
+        self.log_debug("Leaving _m_l_p() dest is now '%s'" % dest)
         return dest
 
     def _check_path(self, src, path_type, dest=None, force=False):
@@ -417,8 +431,12 @@ class FileCacheArchive(Archive):
         # Follow-up must be outside the path lock: we recurse into
         # other monitor methods that will attempt to reacquire it.
 
+        self.log_debug("Link follow up: source=%s link_name=%s dest=%s" %
+                       (source, link_name, dest))
         source_dir = os.path.dirname(link_name)
         host_source = os.path.join(source_dir, source)
+        self.log_debug("Checking for %s presence" %
+                       self.dest_path(host_source))
         if not os.path.exists(self.dest_path(host_source)):
             if os.path.islink(host_source):
                 link_dir = os.path.dirname(link_name)
@@ -439,6 +457,7 @@ class FileCacheArchive(Archive):
                 self.log_debug("No link follow up: source=%s link_name=%s" %
                                (source, link_name))
 
+        self.log_debug("leaving add_link()")
 
     def add_dir(self, path, copy=False):
         """Create a directory in the archive.
